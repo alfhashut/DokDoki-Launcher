@@ -28,9 +28,9 @@ DokDoki Launcher is a fan-made project, unaffiliated with Team Salvato.
 ## Downloads
 
 Official builds are intended to be provided through this repository's
-**GitHub Releases**. The first public v1.0 release is being prepared.
+**GitHub Releases**.
 
-Planned release formats:
+release formats:
 
 - **Windows x64:** `DokDoki-Launcher.exe`
 - **Linux x86_64:** `DokDoki-Launcher-Linux-x86_64.AppImage`
@@ -103,5 +103,4 @@ does not download it on behalf of players. Users must obtain their own copy
 and select its installation manually.
 
 See the official [Team Salvato IP Guidelines](https://teamsalvato.com/ip-guidelines)
-for guidance on fan work. This disclaimer does not grant permission or a license
-to use or distribute Team Salvato's intellectual property.
+for guidance on fan work.
