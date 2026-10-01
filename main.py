@@ -9160,6 +9160,24 @@ def play_ddlc(settings):
     )
 
 
+def validate_theme_name(theme_name):
+    if isinstance(theme_name, str) and theme_name in ("system", "light", "dark"):
+        return theme_name
+    return "system"
+
+
+def apply_theme(app, theme_name):
+    theme_name = validate_theme_name(theme_name)
+    style_hints = app.styleHints()
+
+    if theme_name == "light":
+        style_hints.setColorScheme(Qt.ColorScheme.Light)
+    elif theme_name == "dark":
+        style_hints.setColorScheme(Qt.ColorScheme.Dark)
+    else:
+        style_hints.unsetColorScheme()
+
+
 def main():
     app = QApplication(sys.argv)
 
@@ -9173,6 +9191,8 @@ def main():
         "Epicfrisk",
         "DDLC Mod Launcher",
     )
+    theme_name = validate_theme_name(settings.value("theme", "system"))
+    apply_theme(app, theme_name)
 
     create_vanilla_profile(settings)
 
@@ -9201,6 +9221,22 @@ def main():
     )
 
     layout.addWidget(title)
+
+    theme_label = QLabel("Theme")
+    layout.addWidget(theme_label)
+
+    theme_combo = QComboBox()
+    for label, value in (("System", "system"), ("Light", "light"), ("Dark", "dark")):
+        theme_combo.addItem(label, value)
+    theme_combo.setCurrentIndex(theme_combo.findData(theme_name))
+
+    def change_theme(_index):
+        selected_theme = validate_theme_name(theme_combo.currentData())
+        settings.setValue("theme", selected_theme)
+        apply_theme(app, selected_theme)
+
+    theme_combo.currentIndexChanged.connect(change_theme)
+    layout.addWidget(theme_combo)
 
     ddlc_label = QLabel(
         "DDLC Installation"
