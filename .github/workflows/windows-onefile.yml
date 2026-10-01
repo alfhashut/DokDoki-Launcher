@@ -1,0 +1,166 @@
+name: Windows Onefile Build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14.7"
+          architecture: x64
+
+      - name: Install build dependencies and print versions
+        run: |
+          python -m pip install --upgrade pip
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pip install -r requirements-windows-build.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pip --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m nuitka --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Apply temporary async-mega.py build workaround
+        run: |
+          @'
+          import hashlib
+          import importlib.util
+          import json
+          from pathlib import Path
+
+          output = Path("build/nuitka-windows-onefile")
+          output.mkdir(parents=True, exist_ok=True)
+          backup = output / "mega-init-original.bin"
+          state = output / "mega-init-backup.json"
+          if backup.exists() or state.exists():
+              raise RuntimeError("A dependency backup already exists; refusing to overwrite it.")
+          spec = importlib.util.find_spec("mega")
+          if spec is None or spec.origin is None:
+              raise RuntimeError("Could not locate the installed mega/__init__.py.")
+          dependency = Path(spec.origin).resolve(strict=True)
+          original = dependency.read_bytes()
+          old = b'_package_name_ = "async-mega-py"'
+          new = b'_package_name_ = "async-mega.py"'
+          if original.count(old) != 1:
+              raise RuntimeError("Expected exactly one async-mega-py distribution-name assignment.")
+          original_sha256 = hashlib.sha256(original).hexdigest()
+          backup.write_bytes(original)
+          if backup.read_bytes() != original:
+              raise RuntimeError("Dependency backup verification failed.")
+          state.write_text(json.dumps({
+              "dependency": str(dependency),
+              "sha256": original_sha256,
+          }, indent=2) + "\n", encoding="utf-8")
+          print(f"Dependency: {dependency}", flush=True)
+          print(f"Original SHA-256: {original_sha256}", flush=True)
+          patched = original.replace(old, new, 1)
+          dependency.write_bytes(patched)
+          if dependency.read_bytes() != patched:
+              raise RuntimeError("Temporary dependency patch verification failed.")
+          print('Only change: _package_name_ = "async-mega-py" -> _package_name_ = "async-mega.py"')
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build Windows onefile application
+        run: |
+          # Tee-Object must not mask Nuitka's native process exit code.
+          $PSNativeCommandUseErrorActionPreference = $false
+          python -m nuitka `
+            --mode=onefile `
+            --output-filename=DokDoki-Launcher.exe `
+            --enable-plugin=pyside6 `
+            --include-package-data=certifi `
+            --include-distribution-metadata=async-mega.py `
+            --assume-yes-for-downloads `
+            --msvc=14.3 `
+            --output-dir=build/nuitka-windows-onefile `
+            --report=build/nuitka-windows-onefile/compilation-report.xml `
+            main.py 2>&1 | Tee-Object -FilePath build/nuitka-windows-onefile/build.log
+          $nuitkaExitCode = $LASTEXITCODE
+          if ($nuitkaExitCode -ne 0) { exit $nuitkaExitCode }
+
+      - name: Restore original async-mega.py dependency
+        if: always()
+        run: |
+          @'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          output = Path("build/nuitka-windows-onefile")
+          backup = output / "mega-init-original.bin"
+          state = output / "mega-init-backup.json"
+          if not backup.exists() and not state.exists():
+              print("No temporary dependency change was prepared; nothing to restore.")
+          else:
+              if not backup.is_file() or not state.is_file():
+                  raise RuntimeError("Dependency backup is incomplete; restoration cannot be verified.")
+              saved = json.loads(state.read_text(encoding="utf-8"))
+              original = backup.read_bytes()
+              if hashlib.sha256(original).hexdigest() != saved["sha256"]:
+                  raise RuntimeError("Dependency backup SHA-256 does not match the original value.")
+              dependency = Path(saved["dependency"])
+              dependency.write_bytes(original)
+              restored = dependency.read_bytes()
+              restored_sha256 = hashlib.sha256(restored).hexdigest()
+              if restored != original or restored_sha256 != saved["sha256"]:
+                  raise RuntimeError("Restored dependency does not match the original bytes/SHA-256.")
+              print(f"Restored dependency: {dependency}")
+              print(f"Restored SHA-256: {restored_sha256}")
+              print("Original dependency restored byte-for-byte.")
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify onefile output
+        run: |
+          @'
+          import hashlib
+          from pathlib import Path
+
+          executable = Path("build/nuitka-windows-onefile/DokDoki-Launcher.exe").resolve(strict=True)
+          if not executable.is_file():
+              raise RuntimeError(f"Onefile executable is not a regular file: {executable}")
+          with executable.open("rb") as stream:
+              executable_sha256 = hashlib.file_digest(stream, "sha256").hexdigest()
+          print(f"Generated executable: {executable}")
+          print(f"Executable size: {executable.stat().st_size} bytes")
+          print(f"Executable SHA-256: {executable_sha256}")
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload Windows onefile executable
+        uses: actions/upload-artifact@v7
+        with:
+          name: DokDoki-Launcher-Windows-x64-onefile
+          path: build/nuitka-windows-onefile/DokDoki-Launcher.exe
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: DokDoki-Launcher-Windows-onefile-build-diagnostics
+          path: |
+            build/nuitka-windows-onefile/compilation-report.xml
+            build/nuitka-windows-onefile/build.log
+          if-no-files-found: warn
+          retention-days: 7
