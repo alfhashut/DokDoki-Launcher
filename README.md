@@ -33,6 +33,7 @@ Official builds are intended to be provided through this repository's
 release formats:
 
 - **Windows x64:** `DokDoki-Launcher.exe`
+- > **Windows users:** DokDoki Launcher is currently unsigned, so Microsoft Defender SmartScreen may show an "Unknown publisher" / "Windows protected your PC" warning. Download only from this GitHub repository and verify the published SHA-256 checksum.
 - **Linux x86_64:** `DokDoki-Launcher-Linux-x86_64.AppImage`
 
 ## Requirements
