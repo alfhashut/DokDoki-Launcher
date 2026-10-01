@@ -86,6 +86,7 @@ jobs:
           python -m nuitka `
             --mode=standalone `
             --enable-plugin=pyside6 `
+            --include-package-data=certifi `
             --include-distribution-metadata=async-mega.py `
             --assume-yes-for-downloads `
             --msvc=14.3 `

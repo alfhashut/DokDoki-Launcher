@@ -1993,6 +1993,22 @@ def download_mega_mod(
                 download_directory
             )
 
+        if os.name == "nt":
+            try:
+                ca_bundle_path = Path(requests.certs.where()).resolve(
+                    strict=True
+                )
+                if not ca_bundle_path.is_file():
+                    raise ValueError("The CA bundle path is not a regular file.")
+            except (OSError, RuntimeError, TypeError, ValueError) as error:
+                print(
+                    "Failed to download MEGA mod: MEGA TLS certificate "
+                    f"bundle could not be located. {error}"
+                )
+                return None
+
+            helper_environment["SSL_CERT_FILE"] = str(ca_bundle_path)
+
         process = subprocess.Popen(
             build_mega_helper_command(
                 page_url,
