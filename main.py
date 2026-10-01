@@ -1847,6 +1847,9 @@ def _read_mega_helper_status(status_path):
     if len(status_data) > 64 * 1024:
         raise ValueError("MEGA helper status exceeds the size limit.")
 
+    if not status_data:
+        raise ValueError("MEGA helper exited without writing a status result.")
+
     status = json.loads(
         status_data.decode("utf-8")
     )
@@ -1987,11 +1990,6 @@ def download_mega_mod(
         )
 
         helper_environment = os.environ.copy()
-
-        for variable_name in ("TMPDIR", "TEMP", "TMP"):
-            helper_environment[variable_name] = str(
-                download_directory
-            )
 
         if os.name == "nt":
             try:
