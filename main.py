@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import json
 import os
+import ssl
 import stat
 import sys
 import shutil
@@ -518,6 +519,27 @@ def validate_mod_registry_entry(mod, index):
     return True
 
 
+def create_https_ssl_context():
+    context = ssl.create_default_context()
+
+    try:
+        ca_bundle_path = Path(requests.certs.where()).resolve(
+            strict=True
+        )
+
+        if not ca_bundle_path.is_file():
+            raise ValueError("The CA bundle path is not a regular file.")
+
+        context.load_verify_locations(cafile=str(ca_bundle_path))
+    except (OSError, RuntimeError, TypeError, ValueError) as error:
+        raise OSError(
+            "HTTPS TLS certificate bundle could not be resolved or "
+            f"loaded: {error}"
+        ) from error
+
+    return context
+
+
 def fetch_mod_registry():
     request = urllib.request.Request(
         MOD_REGISTRY_URL,
@@ -528,6 +550,7 @@ def fetch_mod_registry():
         with urllib.request.urlopen(
             request,
             timeout=10,
+            context=create_https_ssl_context(),
         ) as response:
             response_data = response.read(
                 MAX_REGISTRY_SIZE + 1
@@ -686,6 +709,7 @@ def resolve_mediafire_download_url(page_url):
         with urllib.request.urlopen(
             request,
             timeout=10,
+            context=create_https_ssl_context(),
         ) as response:
             response_data = response.read(
                 MAX_MEDIAFIRE_PAGE_SIZE + 1
@@ -861,6 +885,7 @@ def download_file_to_temp(
         with urllib.request.urlopen(
             request,
             timeout=timeout,
+            context=create_https_ssl_context(),
         ) as response:
             final_url = response.url
 
@@ -1991,7 +2016,14 @@ def download_mega_mod(
 
         helper_environment = os.environ.copy()
 
-        if os.name == "nt":
+        if (
+            os.name == "nt"
+            or (
+                "__compiled__" in globals()
+                and sys.platform.startswith("linux")
+                and not helper_environment.get("SSL_CERT_FILE")
+            )
+        ):
             try:
                 ca_bundle_path = Path(requests.certs.where()).resolve(
                     strict=True
