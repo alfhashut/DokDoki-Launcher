@@ -81,15 +81,17 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN: "1"
         run: |
           set -o pipefail
-          # Nuitka 4.2.2 requires these three metadata fields for installers.
-          # 0.0.0 is a debug packaging placeholder, not the launcher release version.
+          # Nuitka 4.2.2's installer backend uses the icon even in standalone mode.
           python -m nuitka \
             --mode=standalone \
             --linux-create-installer \
             --linux-installer-output=DokDoki-Launcher-Linux-x86_64.AppImage \
+            --linux-app-icon=assets/dokdoki-launcher.png \
             --product-name="DokDoki Launcher" \
-            --product-version=0.0.0 \
-            --company-name=Epicfrisk \
+            --company-name="Epicfrisk" \
+            --product-version=1.0.0 \
+            --file-version=1.0.0 \
+            --file-description="An unofficial DDLC Mod Manager" \
             --enable-plugin=pyside6 \
             --include-package-data=certifi \
             --include-distribution-metadata=async-mega.py \

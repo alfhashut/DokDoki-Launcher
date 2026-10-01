@@ -86,6 +86,12 @@ jobs:
           python -m nuitka `
             --mode=onefile `
             --output-filename=DokDoki-Launcher.exe `
+            --windows-icon-from-ico=assets/dokdoki-launcher.ico `
+            --product-name="DokDoki Launcher" `
+            --company-name="Epicfrisk" `
+            --product-version=1.0.0 `
+            --file-version=1.0.0 `
+            --file-description="An unofficial DDLC Mod Manager" `
             --enable-plugin=pyside6 `
             --include-package-data=certifi `
             --include-distribution-metadata=async-mega.py `
