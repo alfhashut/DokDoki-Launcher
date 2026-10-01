@@ -3,7 +3,7 @@
 > An unofficial DDLC Mod Manager
 
 DokDoki Launcher helps you install, organize, and play fan-made mods for the
-original Doki Doki Literature Club! (DDLC). It creates separate profiles from
+original Doki Doki Literature Club (DDLC). It creates separate profiles from
 your own local DDLC installation, keeping mod files separate from your clean
 base installation.
 
@@ -38,7 +38,7 @@ release formats:
 ## Requirements
 
 You need your own clean, unmodified copy of the **original Doki Doki Literature
-Club!**, obtained from the [official DDLC website](https://ddlc.moe/).
+Club**, obtained from the [official DDLC website](https://ddlc.moe/).
 
 DokDoki Launcher **does not include, distribute, or download DDLC**. You must
 obtain the game yourself and manually select its installation folder. Official
@@ -96,7 +96,7 @@ Current intended release targets:
 DokDoki Launcher is an unofficial, fan-made project. It is not affiliated with,
 endorsed by, or associated with Team Salvato.
 
-Doki Doki Literature Club! and related properties belong to Team Salvato.
+Doki Doki Literature Club and related properties belong to Team Salvato.
 
 DokDoki Launcher does not include or distribute Doki Doki Literature Club and
 does not download it on behalf of players. Users must obtain their own copy
