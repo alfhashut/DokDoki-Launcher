@@ -1,0 +1,222 @@
+name: Linux AppImage Build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14.7"
+          architecture: x64
+
+      - name: Install build dependencies and print versions
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends patchelf file
+          python -m pip install -r requirements-linux-build.txt
+          python --version
+          python -m pip --version
+          python -m nuitka --version
+          patchelf --version
+
+      - name: Apply temporary async-mega.py build workaround
+        run: |
+          python - <<'PY'
+          import hashlib
+          import importlib.util
+          import json
+          from pathlib import Path
+
+          output = Path("build/nuitka-linux-appimage")
+          output.mkdir(parents=True, exist_ok=True)
+          backup = output / "mega-init-original.bin"
+          state = output / "mega-init-backup.json"
+          if backup.exists() or state.exists():
+              raise RuntimeError("A dependency backup already exists; refusing to overwrite it.")
+          spec = importlib.util.find_spec("mega")
+          if spec is None or spec.origin is None:
+              raise RuntimeError("Could not locate the installed mega/__init__.py.")
+          dependency = Path(spec.origin).resolve(strict=True)
+          original = dependency.read_bytes()
+          old = b'_package_name_ = "async-mega-py"'
+          new = b'_package_name_ = "async-mega.py"'
+          if original.count(old) != 1:
+              raise RuntimeError("Expected exactly one async-mega-py distribution-name assignment.")
+          original_sha256 = hashlib.sha256(original).hexdigest()
+          backup.write_bytes(original)
+          if backup.read_bytes() != original:
+              raise RuntimeError("Dependency backup verification failed.")
+          state.write_text(json.dumps({
+              "dependency": str(dependency),
+              "sha256": original_sha256,
+          }, indent=2) + "\n", encoding="utf-8")
+          print(f"Dependency: {dependency}", flush=True)
+          print(f"Original SHA-256: {original_sha256}", flush=True)
+          patched = original.replace(old, new, 1)
+          dependency.write_bytes(patched)
+          if dependency.read_bytes() != patched:
+              raise RuntimeError("Temporary dependency patch verification failed.")
+          print('Only change: _package_name_ = "async-mega-py" -> _package_name_ = "async-mega.py"')
+          PY
+
+      - name: Build Linux AppImage
+        env:
+          # Let Nuitka's AppImage-based appimagetool run without FUSE mounting.
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          set -o pipefail
+          # Nuitka 4.2.2 requires these three metadata fields for installers.
+          # 0.0.0 is a debug packaging placeholder, not the launcher release version.
+          python -m nuitka \
+            --mode=standalone \
+            --linux-create-installer \
+            --linux-installer-output=DokDoki-Launcher-Linux-x86_64.AppImage \
+            --product-name="DokDoki Launcher" \
+            --product-version=0.0.0 \
+            --company-name=Epicfrisk \
+            --enable-plugin=pyside6 \
+            --include-package-data=certifi \
+            --include-distribution-metadata=async-mega.py \
+            --assume-yes-for-downloads \
+            --output-dir=build/nuitka-linux-appimage \
+            --report=build/nuitka-linux-appimage/compilation-report.xml \
+            main.py 2>&1 | tee build/nuitka-linux-appimage/build.log
+
+      - name: Restore original async-mega.py dependency
+        if: always()
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          output = Path("build/nuitka-linux-appimage")
+          backup = output / "mega-init-original.bin"
+          state = output / "mega-init-backup.json"
+          if not backup.exists() and not state.exists():
+              print("No temporary dependency change was prepared; nothing to restore.")
+          else:
+              if not backup.is_file() or not state.is_file():
+                  raise RuntimeError("Dependency backup is incomplete; restoration cannot be verified.")
+              saved = json.loads(state.read_text(encoding="utf-8"))
+              original = backup.read_bytes()
+              if hashlib.sha256(original).hexdigest() != saved["sha256"]:
+                  raise RuntimeError("Dependency backup SHA-256 does not match the original value.")
+              dependency = Path(saved["dependency"])
+              dependency.write_bytes(original)
+              restored = dependency.read_bytes()
+              restored_sha256 = hashlib.sha256(restored).hexdigest()
+              if restored != original or restored_sha256 != saved["sha256"]:
+                  raise RuntimeError("Restored dependency does not match the original bytes/SHA-256.")
+              print(f"Restored dependency: {dependency}")
+              print(f"Restored SHA-256: {restored_sha256}")
+              print("Original dependency restored byte-for-byte.")
+          PY
+
+      - name: Locate and verify AppImage output
+        id: appimage
+        run: |
+          python - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+          import stat
+
+          workspace = Path.cwd().resolve(strict=True)
+          output = workspace / "build/nuitka-linux-appimage"
+          expected_name = "DokDoki-Launcher-Linux-x86_64.AppImage"
+          # 4.2.2's backend uses the supplied filename relative to cwd;
+          # also inspect output-dir so placement changes cannot go unnoticed.
+          candidates = list(workspace.glob("*.AppImage")) + list(output.rglob("*.AppImage"))
+          if len(candidates) != 1 or candidates[0].name != expected_name:
+              raise RuntimeError(f"Expected exactly one {expected_name}; found: {candidates}")
+          appimage = candidates[0]
+          appimage_status = appimage.lstat()
+          if not stat.S_ISREG(appimage_status.st_mode):
+              raise RuntimeError(f"AppImage is not a regular non-symlink file: {appimage}")
+          appimage = appimage.resolve(strict=True)
+          if workspace not in appimage.parents:
+              raise RuntimeError(f"AppImage is outside the workspace: {appimage}")
+          appimage.chmod(stat.S_IMODE(appimage_status.st_mode) | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+          with appimage.open("rb") as stream:
+              appimage_sha256 = hashlib.file_digest(stream, "sha256").hexdigest()
+          print(f"Generated AppImage: {appimage}")
+          print(f"AppImage size: {appimage.stat().st_size} bytes")
+          print(f"AppImage SHA-256: {appimage_sha256}")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as github_output:
+              github_output.write(f"path={appimage}\n")
+          PY
+
+      - name: Validate AppImage extraction without launching the GUI
+        env:
+          APPIMAGE_PATH: ${{ steps.appimage.outputs.path }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import subprocess
+          import tempfile
+
+          appimage = Path(os.environ["APPIMAGE_PATH"]).resolve(strict=True)
+          subprocess.run(["file", "--", str(appimage)], check=True)
+          extraction_environment = os.environ.copy()
+          # --appimage-extract must only extract, even if the runner sets this.
+          extraction_environment.pop("APPIMAGE_EXTRACT_AND_RUN", None)
+          log_path = Path("build/nuitka-linux-appimage/extraction.log")
+          with tempfile.TemporaryDirectory(prefix="dokdoki-appimage-check-", dir=os.environ["RUNNER_TEMP"]) as validation_directory:
+              with log_path.open("wb") as log:
+                  subprocess.run(
+                      [str(appimage), "--appimage-extract"],
+                      cwd=validation_directory,
+                      env=extraction_environment,
+                      stdout=log,
+                      stderr=subprocess.STDOUT,
+                      check=True,
+                  )
+              extracted_root = Path(validation_directory) / "squashfs-root"
+              apprun = extracted_root / "AppRun"
+              if not apprun.is_file() or not os.access(apprun, os.X_OK):
+                  raise RuntimeError("Extracted AppImage has no executable AppRun entry point.")
+              if not any(extracted_root.glob("*.desktop")):
+                  raise RuntimeError("Extracted AppImage has no generated desktop entry.")
+              print("AppImage extracted successfully; AppRun and desktop entry are present.")
+              print(f"Extraction log: {log_path.resolve()}")
+          PY
+
+      - name: Upload Linux AppImage
+        uses: actions/upload-artifact@v7
+        with:
+          name: DokDoki-Launcher-Linux-x86_64-AppImage
+          path: ${{ steps.appimage.outputs.path }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: DokDoki-Launcher-Linux-AppImage-build-diagnostics
+          path: |
+            build/nuitka-linux-appimage/compilation-report.xml
+            build/nuitka-linux-appimage/build.log
+            build/nuitka-linux-appimage/extraction.log
+            nuitka-crash-report.xml
+            build/nuitka-linux-appimage/**/nuitka-crash-report.xml
+          if-no-files-found: warn
+          retention-days: 7
