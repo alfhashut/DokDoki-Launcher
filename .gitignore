@@ -1,0 +1,25 @@
+# Python environment / cache
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Build output
+build/
+dist/
+*.log
+
+# DDLC files - never upload the base game
+DDLC-1.1.1-pc/
+DDLC-*/
+
+# Downloaded mod archives
+*.zip
+*.7z
+
+# Editor / OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
