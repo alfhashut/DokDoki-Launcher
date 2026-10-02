@@ -6790,7 +6790,7 @@ def repair_linux_launcher_permissions(
         )
     except (OSError, RuntimeError, ValueError) as error:
         print(
-            "Failed to resolve packaged-runtime Linux launcher for "
+            "Failed to resolve Linux launcher for "
             f"permission repair: {error}"
         )
         return False
@@ -6800,7 +6800,7 @@ def repair_linux_launcher_permissions(
         resolved_launcher,
     ):
         print(
-            "Cannot repair packaged-runtime Linux launcher outside "
+            "Cannot repair Linux launcher outside "
             f"the profile: {resolved_launcher}"
         )
         return False
@@ -6809,14 +6809,14 @@ def repair_linux_launcher_permissions(
         launcher_mode = resolved_launcher.stat().st_mode
     except OSError as error:
         print(
-            "Failed to inspect packaged-runtime Linux launcher "
+            "Failed to inspect Linux launcher "
             f"permissions: {error}"
         )
         return False
 
     if not stat.S_ISREG(launcher_mode):
         print(
-            "Packaged-runtime Linux launcher is not a regular file: "
+            "Linux launcher is not a regular file: "
             f"{resolved_launcher}"
         )
         return False
@@ -6844,7 +6844,7 @@ def repair_linux_launcher_permissions(
             )
     except (OSError, RuntimeError, ValueError) as error:
         print(
-            "Failed to repair packaged-runtime Linux execute "
+            "Failed to repair Linux launcher execute "
             f"permissions: {error}"
         )
         return False
@@ -7198,6 +7198,12 @@ def find_ddlc_launcher(ddlc_folder):
 
             for launcher in preferred:
                 if launcher.is_file():
+                    if not repair_linux_launcher_permissions(
+                        ddlc_folder,
+                        launcher,
+                    ):
+                        return None, None, "permission_repair_failed"
+
                     return launcher, "linux", None
 
             linux_launchers = sorted(
@@ -7205,7 +7211,15 @@ def find_ddlc_launcher(ddlc_folder):
             )
 
             if linux_launchers:
-                return linux_launchers[0], "linux", None
+                launcher = linux_launchers[0]
+
+                if not repair_linux_launcher_permissions(
+                    ddlc_folder,
+                    launcher,
+                ):
+                    return None, None, "permission_repair_failed"
+
+                return launcher, "linux", None
 
             windows_launchers = sorted(
                 ddlc_folder.glob("*.exe")
