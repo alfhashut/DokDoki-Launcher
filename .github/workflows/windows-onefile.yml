@@ -89,8 +89,8 @@ jobs:
             --windows-icon-from-ico=assets/dokdoki-launcher.ico `
             --product-name="DokDoki Launcher" `
             --company-name="Epicfrisk" `
-            --product-version=1.0.0 `
-            --file-version=1.0.0 `
+            --product-version=1.0.1 `
+            --file-version=1.0.1 `
             --file-description="An unofficial DDLC Mod Manager" `
             --enable-plugin=pyside6 `
             --include-package-data=certifi `
