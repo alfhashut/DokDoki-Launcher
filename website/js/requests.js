@@ -1,20 +1,14 @@
 "use strict";
 
 (() => {
-  // Part 4 deliberately provisions the service. Keep all production gates closed.
-  const SUBMISSIONS_ENABLED = false;
-  const API_BASE_URL = "";
-  const TURNSTILE_SITE_KEY = "";
-  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
-  // Private test opt-ins are ignored on production. Local hosting is testing only.
-  const localConfig = new URLSearchParams(loopback ? window.location.search : "");
-  const enabled = SUBMISSIONS_ENABLED || (loopback && localConfig.get("submissions") === "1");
-  const siteKey = TURNSTILE_SITE_KEY || (loopback ? localConfig.get("sitekey") : "");
-  const configuredURL = API_BASE_URL || (loopback ? localConfig.get("api") : "");
+  // Public production configuration. Private credentials belong only in the Worker.
+  const SUBMISSIONS_ENABLED = true;
+  const API_BASE_URL = "https://dokdoki-requests.fanundertale86.workers.dev";
+  const TURNSTILE_SITE_KEY = "0x4AAAAAAFf0QrSXza1H1hXL";
   let apiURL = null;
-  if (configuredURL) {
+  if (API_BASE_URL) {
     try {
-      const url = new URL(configuredURL);
+      const url = new URL(API_BASE_URL);
       const localHTTP = url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
       if ((url.protocol === "https:" || localHTTP) && !url.username && !url.password && !url.search && !url.hash) {
         apiURL = `${url.href.replace(/\/+$/, "")}/api/report`;
@@ -26,7 +20,7 @@
   const completed = new Set();
   const fieldErrors = new Map();
   const verification = new Map();
-  const configured = enabled && Boolean(apiURL && siteKey);
+  const configured = SUBMISSIONS_ENABLED && Boolean(apiURL && TURNSTILE_SITE_KEY);
   let turnstileReady = false;
   let scriptLoading = null;
   const definitions = {
@@ -84,7 +78,7 @@
     state.retry.hidden = true;
     try {
       state.widgetId = window.turnstile.render(state.container, {
-        sitekey: siteKey,
+        sitekey: TURNSTILE_SITE_KEY,
         action: definitions[form.id].action,
         theme: "auto",
         size: "compact",
@@ -240,7 +234,7 @@
         removeWidget(form);
         state.wrapper.hidden = true;
         const heading = document.createElement("p");
-        heading.textContent = "Report submitted";
+        heading.textContent = "✓ Report submitted";
         const number = document.createElement("p");
         number.textContent = `Request #${data.requestNumber}`;
         const status = document.createElement("p");

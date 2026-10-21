@@ -14,9 +14,13 @@ python3 tests/serve.py
 
 Open `http://127.0.0.1:8000/tests/`. Results appear on the page. Stop the server
 with Ctrl+C. The server binds only to loopback and serves only website assets,
-test HTML/JS, and the Worker source. It cannot serve `.dev.vars`, `.env`, Git data,
+test HTML/JS, the Worker source, and its public Wrangler configuration. It cannot serve `.dev.vars`, `.env`, Git data,
 or the launcher. For test iframes only, it injects the fixture bootstrap before
-the production script; application files are not rewritten on disk.
+the production script. Configuration variants are served only when the test
+helper supplies an explicit `_test`/`_config` fixture; application files are not
+rewritten on disk. The deployed website has no query configuration overrides.
+The default fixture exercises the checked-in production URL, public site key,
+and enabled gate while still mocking all upstream requests.
 
 The project already uses PySide6. To automate the same tests in its environment:
 
@@ -30,7 +34,8 @@ package, or framework needs to be installed for the tests in this environment.
 If the execution sandbox blocks browser subprocesses, run the check with the
 host's normal browser permissions; do not disable the browser sandbox.
 
-Coverage includes all three issue formats, server validation and size limits,
+Coverage includes the checked-in production configuration, project-subpath assets
+and navigation, privacy notice and footer, all three issue formats, server validation and size limits,
 CORS/preflights, disabled gates, authentication/header handling, safe failures,
 missing labels, label errors, no issue-create retries, no credential leaks,
 literal Markdown content, client validation, duplicate-click protection,

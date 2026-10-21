@@ -2,6 +2,7 @@ import { cases } from "./helpers.js";
 import "./worker.test.js";
 import "./website.test.js";
 import "./turnstile.test.js";
+import "./production.test.js";
 
 window.DOKDOKI_TEST_RESULT = { done: false, passed: 0, failed: 0, failures: [] };
 for (const { name, run } of cases) {

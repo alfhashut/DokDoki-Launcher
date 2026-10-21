@@ -1,16 +1,18 @@
-# DokDoki request Worker — Part 3
+# DokDoki request Worker — production configuration
 
 This plain JavaScript Cloudflare Worker accepts website reports and creates public
 GitHub Issues in **alfhashut/DokDoki-Launcher**. It has no database, accounts,
 cookies, analytics, IP collection, or submission storage. The website remains on
 GitHub Pages; the Worker is a separate API.
 
-**Do not deploy or enable public submissions in this phase. Part 4 will provision
-real credentials and deliberately enable the service.** The final architecture is
-GitHub Pages → Turnstile → Cloudflare Worker → GitHub Issues; nothing is hosted on
-a local machine. Loopback servers in this repository are development/test tools only.
+Production submissions are deliberately enabled in both the checked-in website
+and Worker configuration. The API base URL is
+`https://dokdoki-requests.fanundertale86.workers.dev`; the website is hosted at
+`https://alfhashut.github.io/DokDoki-Launcher/`. Deployment remains a separate
+operator action. The architecture is GitHub Pages → Turnstile → Cloudflare
+Worker → GitHub Issues; no local service is required.
 CORS is a browser restriction, not authentication. Turnstile is verified by the
-Worker independently of the website. Production remains disabled by default.
+Worker independently of the website.
 
 ## API
 
@@ -139,28 +141,31 @@ storage, logs, hidden inputs, or status URLs.
 ## Credential and configuration
 
 The required Worker secrets are **TURNSTILE_SECRET_KEY** and **GITHUB_TOKEN**.
-Eventually use a fine-grained GitHub token
+The existing GitHub credential should be a fine-grained token
 scoped to **only alfhashut/DokDoki-Launcher**, with **Issues: Read and write**.
 No broader repository permissions are needed. Actual label application also
 depends on the token owner's role in the repository; failure is nonfatal.
 
 Never put the credential in HTML, website JavaScript, Wrangler vars, logs, or
-tracked files. Use Cloudflare's secret facility in Part 4; do not provision or
-deploy it as part of this phase. Local secrets belong in ignored `.dev.vars`.
+tracked files. Both private secrets are already provisioned in Cloudflare; keep
+those bindings in place without copying or re-entering their values. Local
+secrets, if needed for separate development, belong in ignored `.dev.vars`.
 
 Non-secret Wrangler variables:
 
 - `SUBMISSIONS_ENABLED`: only the exact string `true` permits submissions. The
-  checked-in value is `false`; missing and other values fail closed.
+  checked-in value is `true`; missing and other values fail closed.
 - `ALLOWED_ORIGINS`: comma-separated exact origins. Default:
-  `https://alfhashut.github.io` (no `/DokDoki-Launcher/` path). Add each local
-  scheme/host/port explicitly. HTTP is accepted only for loopback hosts; HTTPS
-  origins must also match exactly. Wildcards, paths, and credentials are rejected.
+  `https://alfhashut.github.io` (no `/DokDoki-Launcher/` path). Production allows
+  only that exact origin. Local origin variants exist only in mocked tests.
+  Origins must match exactly. Wildcards, paths, and credentials are rejected.
   The response echoes only an allowed origin and varies by Origin. It does not
   allow credentials or wildcard POST origins.
 
-`workers_dev` and `preview_urls` are also disabled and no routes or deployment
-workflow are supplied. Merging this directory cannot activate the API.
+`workers_dev` is enabled, `preview_urls` remains disabled, and the compatibility
+date is **2026-10-21**. There are no custom routes or domains and no Worker
+deployment workflow in this repository. The existing Pages workflow publishes
+only `website/`; it does not deploy the Worker.
 
 ## Local development and testing
 
@@ -201,21 +206,16 @@ rejection of everything else. Production secrets reject dummy tokens.
 
 ## Website configuration
 
-`website/js/requests.js` keeps `SUBMISSIONS_ENABLED = false`, `API_BASE_URL = ""`,
-and `TURNSTILE_SITE_KEY = ""`. No Turnstile script is loaded and no widget is
-rendered unless all three are configured. Production ignores every local query
-override, so merging the integration cannot activate the form. The public site
-key is not a secret; both private keys belong exclusively in Worker secrets.
+`website/js/requests.js` sets `SUBMISSIONS_ENABLED = true`,
+`API_BASE_URL = "https://dokdoki-requests.fanundertale86.workers.dev"`, and
+`TURNSTILE_SITE_KEY = "0x4AAAAAAFf0QrSXza1H1hXL"`. The site key and API URL are
+public. Both private credentials belong exclusively in Cloudflare Worker secrets.
+There are no local or query-string configuration overrides in the website.
 
-Only on `localhost`, `127.0.0.1`, or `[::1]`, a private test can opt in with:
-
-```text
-http://127.0.0.1:8000/DokDoki-Launcher/requests.html?submissions=1&api=http%3A%2F%2F127.0.0.1%3A8787&sitekey=1x00000000000000000000AA
-```
-
-This is a local test URL, not a checked-in production API endpoint. The base URL
-must have no credentials, query, or fragment; `/api/report` is appended to it.
-The test server described in tests/README.md supplies the requested Pages subpath.
+The base URL must have no credentials, query, or fragment; `/api/report` is
+appended to it. Incomplete/invalid configuration still fails closed. Tests serve
+explicit fixture variants through the loopback test server, outside the Pages
+artifact, and intercept the official Turnstile script before any network load.
 
 When enabled, the website validates every field, sends only the schema fields,
 locks all submit buttons and the picker during the request, and shows Submitting…
@@ -226,29 +226,39 @@ form stays locked for that page visit. Reloading never submits automatically;
 nothing is queued or persisted. Validation and backend failures permit a manual
 retry; uncertain network results advise checking status first.
 
-## Future Part 4 production setup — do not perform during Part 3
+## Remaining production steps after committing and pushing
 
-In Cloudflare Dashboard, create **one Turnstile widget in Managed mode** named
-for DokDoki Launcher. Its authorized hostname must be **alfhashut.github.io**.
-Enter only that hostname: no `https://`, `/DokDoki-Launcher/`, other paths, ports,
-or wildcard. Keep pre-clearance disabled; clearance cookies are not needed.
-Managed mode is selected in the dashboard, not by an invented client `mode` option.
+1. Deploy the updated Worker configuration using the existing Cloudflare
+   deployment setup. If using an already installed, authenticated Wrangler CLI,
+   run `wrangler deploy --config worker/wrangler.jsonc` from the repository root.
+   No deploy command was run as part of this configuration change. Keep the
+   already-provisioned `GITHUB_TOKEN` and `TURNSTILE_SECRET_KEY` secret bindings;
+   neither needs to be copied into the repository or entered again.
+2. In the existing Turnstile widget for the public site key above, confirm Managed
+   mode and authorized hostname **alfhashut.github.io** only (no scheme, path,
+   port, or wildcard). Keep pre-clearance disabled. The Worker also enforces the
+   exact hostname and expected action, independently of dashboard settings.
+3. For a push to `main`, wait for **Deploy website to GitHub Pages** to complete.
+   Pages must use GitHub Actions as its publishing source. If the changes were
+   pushed to another branch, merge them to `main` first. No workflow was changed.
+4. Check `https://dokdoki-requests.fanundertale86.workers.dev/health` returns
+   `{"ok":true}`. Then visit
+   `https://alfhashut.github.io/DokDoki-Launcher/requests.html` and confirm the
+   challenge appears on each form, submission waits for verification, and the
+   Downloads version selector and internal Status page load. The automated suite
+   uses mocks; a real successful submission would create a public GitHub Issue.
 
-| Value | Where it belongs |
+| Value | Production location |
 | --- | --- |
-| `TURNSTILE_SITE_KEY` | Public website config in `website/js/requests.js` |
-| `TURNSTILE_SECRET_KEY` | Private Cloudflare Worker secret only |
-| `GITHUB_TOKEN` | Private Cloudflare Worker secret only; repository-scoped Issues: Read and write |
-| `API_BASE_URL` | Public website config, final HTTPS Worker base URL without `/api/report` |
+| `TURNSTILE_SITE_KEY` | Public website configuration; the supplied public key only |
+| `TURNSTILE_SECRET_KEY` | Existing private Cloudflare Worker secret only |
+| `GITHUB_TOKEN` | Existing private Cloudflare Worker secret only |
+| `API_BASE_URL` | Public website configuration; HTTPS workers.dev base URL |
 | `ALLOWED_ORIGINS` | Worker non-secret variable: `https://alfhashut.github.io` |
-| `SUBMISSIONS_ENABLED` | Keep false in both places now; enable deliberately in Part 4 |
+| `SUBMISSIONS_ENABLED` | Enabled in both website and Worker configuration |
 
-**TURNSTILE_SECRET_KEY and GITHUB_TOKEN must never be committed.** Public site
-keys may be committed when deliberately configured later. Real credential
-provisioning, hosted Worker URL/routing, deployment, and public enablement are
-left for Part 4. The Worker additionally enforces the exact hostname and expected
-action regardless of dashboard hostname settings or client configuration.
-No local service is required by the finished production architecture.
+**No private credential may be committed.** No local service, custom domain, or
+route is needed for this production architecture.
 
 CORS is not authentication, and Turnstile is not durable issue idempotency or a
 complete rate-limit policy. Duplicate-click guards remain, and no database/KV,

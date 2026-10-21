@@ -3,10 +3,10 @@
   "name": "dokdoki-requests",
   "main": "src/index.js",
   "compatibility_date": "2026-10-21",
-  "workers_dev": false,
+  "workers_dev": true,
   "preview_urls": false,
   "vars": {
-    "SUBMISSIONS_ENABLED": "false",
+    "SUBMISSIONS_ENABLED": "true",
     "ALLOWED_ORIGINS": "https://alfhashut.github.io"
   },
   "observability": {

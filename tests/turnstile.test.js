@@ -5,7 +5,7 @@ const success = { status: 201, data: { ok: true, requestNumber: 43, status: "rec
 const token = "XXXX.DUMMY.TOKEN.XXXX";
 
 test("Turnstile client: disabled/incomplete configuration never loads or renders a widget", async () => {
-  for (const params of [{}, { api: localAPI, submissions: "0" }, { api: localAPI, sitekey: "" }, { submissions: "1", sitekey: "1x00000000000000000000AA" }]) {
+  for (const params of [{ api: "" }, { api: localAPI, submissions: "0" }, { api: localAPI, sitekey: "" }, { submissions: "1", sitekey: "1x00000000000000000000AA" }]) {
     await withPage("requests.html", [], async ({ doc, fixture }) => {
       equal(fixture.scriptLoads.length, 0);
       equal(fixture.sdk.renders.length, 0);

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Prepare a DokDoki Launcher bug report, mod request, or mod removal request. Online submissions are not available yet.">
+  <meta name="description" content="Submit a DokDoki Launcher bug report, mod request, or mod removal request and track its status on this website.">
   <title>Requests · DokDoki Launcher</title>
   <link rel="icon" href="assets/dokdoki-launcher.png" type="image/png">
   <link rel="stylesheet" href="css/style.css">
@@ -29,7 +29,7 @@
     <div class="intro">
       <h1>Requests</h1>
       <p>Report a launcher bug, suggest a mod for the library, or request a mod’s removal.</p>
-      <p id="submission-notice" class="notice">Online submissions are being connected. These forms are a preview: nothing you enter is sent or saved. Submit buttons are unavailable.</p>
+      <p id="submission-notice" class="notice">Complete the verification before submitting. Your report will be publicly visible on GitHub and this website.</p>
       <p id="privacy-notice" class="help">Submitted reports and requests are stored publicly as GitHub Issues. Do not include private or sensitive information.</p>
       <p class="help">Fields marked with * are required. Optional fields are marked.</p>
     </div>
@@ -41,7 +41,7 @@
         <option value="removal-form">Request Mod Removal</option>
       </select>
     </div>
-    <noscript><p class="notice">Enable JavaScript to preview the forms and validate fields. Online submissions are unavailable.</p></noscript>
+    <noscript><p class="notice">Enable JavaScript to verify and submit a report or request.</p></noscript>
     <!-- Native submission remains disabled; JavaScript sends an explicit field
          allowlist only after an API has been deliberately configured. -->
     <form id="bug-form" class="panel request-form" aria-labelledby="bug-heading" aria-describedby="submission-notice" autocomplete="off">
@@ -57,8 +57,8 @@
         <div class="field"><label for="bug-steps">Steps to reproduce *</label><textarea id="bug-steps" required minlength="10" maxlength="5000" rows="4" placeholder="Describe the steps and what you expected to happen."></textarea></div>
         <div class="field"><label for="bug-additional">Additional information (optional)</label><textarea id="bug-additional" maxlength="5000" rows="3" aria-describedby="bug-privacy"></textarea><p id="bug-privacy" class="help">This information will be public. Remove private details from logs before including them.</p></div>
       </fieldset>
-      <button class="button" type="submit" disabled aria-describedby="bug-unavailable">Submit bug report (unavailable)</button>
-      <p id="bug-unavailable" class="help">Online submissions are being connected.</p>
+      <button class="button" type="submit" disabled aria-describedby="bug-unavailable">Submit bug report</button>
+      <p id="bug-unavailable" class="help">Complete verification and submit only once. Your request number will appear here.</p>
     </form>
     <form id="mod-form" class="panel request-form" aria-labelledby="mod-heading" aria-describedby="submission-notice" autocomplete="off">
       <h2 id="mod-heading">Request a Mod</h2>
@@ -70,8 +70,8 @@
         <div class="field"><label for="mod-version">Mod version (optional)</label><input id="mod-version" type="text" maxlength="80"></div>
         <div class="field"><label for="mod-additional">Additional information (optional)</label><textarea id="mod-additional" maxlength="5000" rows="3"></textarea></div>
       </fieldset>
-      <button class="button" type="submit" disabled aria-describedby="mod-unavailable">Submit mod request (unavailable)</button>
-      <p id="mod-unavailable" class="help">Online submissions are being connected.</p>
+      <button class="button" type="submit" disabled aria-describedby="mod-unavailable">Submit mod request</button>
+      <p id="mod-unavailable" class="help">Complete verification and submit only once. Your request number will appear here.</p>
     </form>
     <form id="removal-form" class="panel request-form" aria-labelledby="removal-heading" aria-describedby="submission-notice" autocomplete="off">
       <h2 id="removal-heading">Request Mod Removal</h2>
@@ -87,8 +87,8 @@
         <div class="field"><label for="removal-proof">Proof/relevant URL (optional)</label><input id="removal-proof" type="url" maxlength="2048" placeholder="https://…" aria-describedby="removal-proof-privacy"><p id="removal-proof-privacy" class="help">This URL will be public. Do not include private documents, access tokens, or sensitive evidence.</p></div>
         <div class="field"><label for="removal-additional">Additional information (optional)</label><textarea id="removal-additional" maxlength="5000" rows="3"></textarea></div>
       </fieldset>
-      <button class="button" type="submit" disabled aria-describedby="removal-unavailable">Submit removal request (unavailable)</button>
-      <p id="removal-unavailable" class="help">Online submissions are being connected.</p>
+      <button class="button" type="submit" disabled aria-describedby="removal-unavailable">Submit removal request</button>
+      <p id="removal-unavailable" class="help">Complete verification and submit only once. Your request number will appear here.</p>
     </form>
     <p class="muted">Looking for an existing request? <a href="status.html">Check request status</a>.</p>
   </main>
