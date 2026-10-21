@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Prepare a DokDoki Launcher bug report, mod request, or mod removal request. Online submissions are not available yet.">
+  <title>Requests · DokDoki Launcher</title>
+  <link rel="icon" href="assets/dokdoki-launcher.png" type="image/png">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/requests.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="index.html"><img src="assets/dokdoki-launcher.png" alt="" width="40" height="40">DokDoki Launcher</a>
+      <nav aria-label="Main navigation">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="downloads.html">Downloads</a></li>
+          <li><a href="requests.html" aria-current="page">Requests</a></li>
+          <li><a href="status.html">Status</a></li>
+          <li><a href="https://github.com/alfhashut/DokDoki-Launcher">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="container">
+    <div class="intro">
+      <h1>Requests</h1>
+      <p>Report a launcher bug, suggest a mod for the library, or request a mod’s removal.</p>
+      <p id="submission-notice" class="notice">Online submissions are being connected. These forms are a preview: nothing you enter is sent or saved. Submit buttons are unavailable.</p>
+      <p id="privacy-notice" class="help">Submitted reports and requests are stored publicly as GitHub Issues. Do not include private or sensitive information.</p>
+      <p class="help">Fields marked with * are required. Optional fields are marked.</p>
+    </div>
+    <div id="request-picker" class="field" hidden>
+      <label for="request-type">Request type</label>
+      <select id="request-type" aria-controls="bug-form mod-form removal-form">
+        <option value="bug-form">Report a Bug</option>
+        <option value="mod-form">Request a Mod</option>
+        <option value="removal-form">Request Mod Removal</option>
+      </select>
+    </div>
+    <noscript><p class="notice">Enable JavaScript to preview the forms and validate fields. Online submissions are unavailable.</p></noscript>
+    <!-- Native submission remains disabled; JavaScript sends an explicit field
+         allowlist only after an API has been deliberately configured. -->
+    <form id="bug-form" class="panel request-form" aria-labelledby="bug-heading" aria-describedby="submission-notice" autocomplete="off">
+      <h2 id="bug-heading">Report a Bug</h2>
+      <fieldset disabled>
+        <legend class="help">Launcher and reproduction details</legend>
+        <div class="field"><label for="bug-version">DokDoki version *</label><input id="bug-version" type="text" required maxlength="80" placeholder="Version shown in the launcher"></div>
+        <div class="field">
+          <label for="bug-os">Operating system *</label>
+          <select id="bug-os" required><option value="">Choose an operating system</option><option value="windows">Windows</option><option value="linux">Linux</option></select>
+        </div>
+        <div class="field"><label for="bug-happened">What happened? *</label><textarea id="bug-happened" required minlength="10" maxlength="5000" rows="4"></textarea></div>
+        <div class="field"><label for="bug-steps">Steps to reproduce *</label><textarea id="bug-steps" required minlength="10" maxlength="5000" rows="4" placeholder="Describe the steps and what you expected to happen."></textarea></div>
+        <div class="field"><label for="bug-additional">Additional information (optional)</label><textarea id="bug-additional" maxlength="5000" rows="3" aria-describedby="bug-privacy"></textarea><p id="bug-privacy" class="help">This information will be public. Remove private details from logs before including them.</p></div>
+      </fieldset>
+      <button class="button" type="submit" disabled aria-describedby="bug-unavailable">Submit bug report (unavailable)</button>
+      <p id="bug-unavailable" class="help">Online submissions are being connected.</p>
+    </form>
+    <form id="mod-form" class="panel request-form" aria-labelledby="mod-heading" aria-describedby="submission-notice" autocomplete="off">
+      <h2 id="mod-heading">Request a Mod</h2>
+      <fieldset disabled>
+        <legend class="help">Mod and source details</legend>
+        <div class="field"><label for="mod-name">Mod name *</label><input id="mod-name" type="text" required maxlength="200"></div>
+        <div class="field"><label for="mod-url">Mod page/source URL *</label><input id="mod-url" type="url" required maxlength="2048" placeholder="https://…" aria-describedby="mod-url-help"><p id="mod-url-help" class="help">Use a full http:// or https:// address.</p></div>
+        <div class="field"><label for="mod-author">Mod author (optional)</label><input id="mod-author" type="text" maxlength="200"></div>
+        <div class="field"><label for="mod-version">Mod version (optional)</label><input id="mod-version" type="text" maxlength="80"></div>
+        <div class="field"><label for="mod-additional">Additional information (optional)</label><textarea id="mod-additional" maxlength="5000" rows="3"></textarea></div>
+      </fieldset>
+      <button class="button" type="submit" disabled aria-describedby="mod-unavailable">Submit mod request (unavailable)</button>
+      <p id="mod-unavailable" class="help">Online submissions are being connected.</p>
+    </form>
+    <form id="removal-form" class="panel request-form" aria-labelledby="removal-heading" aria-describedby="submission-notice" autocomplete="off">
+      <h2 id="removal-heading">Request Mod Removal</h2>
+      <fieldset disabled>
+        <legend class="help">Mod and removal details</legend>
+        <div class="field"><label for="removal-name">Mod name *</label><input id="removal-name" type="text" required maxlength="200"></div>
+        <div class="field"><label for="removal-url">Mod/source URL *</label><input id="removal-url" type="url" required maxlength="2048" placeholder="https://…" aria-describedby="removal-url-help"><p id="removal-url-help" class="help">Use a full http:// or https:// address.</p></div>
+        <div class="field"><label for="removal-reason">Reason *</label><textarea id="removal-reason" required minlength="10" maxlength="5000" rows="4"></textarea></div>
+        <div class="field">
+          <label for="removal-rights">Are you the author or rights holder? *</label>
+          <select id="removal-rights" required><option value="">Choose an answer</option><option value="yes">Yes</option><option value="no">No</option></select>
+        </div>
+        <div class="field"><label for="removal-proof">Proof/relevant URL (optional)</label><input id="removal-proof" type="url" maxlength="2048" placeholder="https://…" aria-describedby="removal-proof-privacy"><p id="removal-proof-privacy" class="help">This URL will be public. Do not include private documents, access tokens, or sensitive evidence.</p></div>
+        <div class="field"><label for="removal-additional">Additional information (optional)</label><textarea id="removal-additional" maxlength="5000" rows="3"></textarea></div>
+      </fieldset>
+      <button class="button" type="submit" disabled aria-describedby="removal-unavailable">Submit removal request (unavailable)</button>
+      <p id="removal-unavailable" class="help">Online submissions are being connected.</p>
+    </form>
+    <p class="muted">Looking for an existing request? <a href="status.html">Check request status</a>.</p>
+  </main>
+  <footer class="site-footer">
+    <div class="container">
+      <p><small>DokDoki Launcher is an unofficial, fan-made project. It is not affiliated with, endorsed by, or associated with Team Salvato.</small></p>
+      <div class="footer-links"><a href="https://github.com/alfhashut/DokDoki-Launcher">GitHub</a><a href="https://github.com/alfhashut/DokDoki-Launcher/releases">Releases</a></div>
+    </div>
+  </footer>
+</body>
+</html>

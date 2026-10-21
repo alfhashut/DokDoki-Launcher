@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="DokDoki Launcher is an unofficial DDLC Mod Manager for Windows and Linux.">
+  <title>DokDoki Launcher</title>
+  <link rel="icon" href="assets/dokdoki-launcher.png" type="image/png">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/releases.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="index.html"><img src="assets/dokdoki-launcher.png" alt="" width="40" height="40">DokDoki Launcher</a>
+      <nav aria-label="Main navigation">
+        <ul>
+          <li><a href="index.html" aria-current="page">Home</a></li>
+          <li><a href="downloads.html">Downloads</a></li>
+          <li><a href="requests.html">Requests</a></li>
+          <li><a href="status.html">Status</a></li>
+          <li><a href="https://github.com/alfhashut/DokDoki-Launcher">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="container">
+    <div class="intro home-intro">
+      <img class="home-logo" src="assets/dokdoki-launcher.png" alt="DokDoki Launcher logo" width="132" height="132">
+      <div>
+        <h1>DokDoki Launcher</h1>
+        <p class="subtitle">An unofficial DDLC Mod Manager.</p>
+        <p>Install, organize, and play DDLC mods from one place.</p>
+      </div>
+    </div>
+    <section class="panel" aria-labelledby="latest-heading" data-releases="home">
+      <h2 id="latest-heading">Latest stable release</h2>
+      <p id="release-message" class="muted" role="status">Loading release information…</p>
+      <p id="release-version" hidden></p>
+      <div id="home-downloads" class="actions">
+        <button class="button primary" type="button" disabled>Download for Windows</button>
+        <button class="button" type="button" disabled>Download for Linux</button>
+      </div>
+      <p><a href="downloads.html">View all versions</a></p>
+      <button id="release-retry" class="button" type="button" hidden>Try again</button>
+      <noscript><p class="notice">Enable JavaScript to load the latest version and download links from GitHub.</p></noscript>
+    </section>
+    <section class="section" aria-labelledby="support-heading">
+      <h2 id="support-heading">Supported features</h2>
+      <ul class="features">
+        <li>Windows and Linux</li>
+        <li>Online Mod Library</li>
+        <li>Separate mod profiles and saves</li>
+        <li>Manual ZIP / 7z installs</li>
+        <li>Ren'Py 6, 7 and 8 support</li>
+      </ul>
+    </section>
+    <section class="section" aria-labelledby="getting-started-heading">
+      <h2 id="getting-started-heading">Before you start</h2>
+      <p>You need your own clean installation of the original Doki Doki Literature Club. Select its folder in the launcher to get started. DokDoki Launcher does not include or download DDLC.</p>
+      <p class="muted">Need help with a bug or a mod listing? Visit <a href="requests.html">Requests</a> or check <a href="status.html">request status</a>.</p>
+    </section>
+  </main>
+  <footer class="site-footer">
+    <div class="container">
+      <p><small>DokDoki Launcher is an unofficial, fan-made project. It is not affiliated with, endorsed by, or associated with Team Salvato.</small></p>
+      <div class="footer-links"><a href="https://github.com/alfhashut/DokDoki-Launcher">GitHub</a><a href="https://github.com/alfhashut/DokDoki-Launcher/releases">Releases</a></div>
+    </div>
+  </footer>
+</body>
+</html>

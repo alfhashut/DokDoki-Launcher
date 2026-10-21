@@ -23,3 +23,9 @@ DDLC-*/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Cloudflare local secrets and generated state
+.dev.vars*
+.env*
+!worker/.dev.vars.example
+.wrangler/

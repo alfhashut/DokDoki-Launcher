@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Look up DokDoki Launcher bug reports, mod requests, and removal request status.">
+  <title>Request status · DokDoki Launcher</title>
+  <link rel="icon" href="assets/dokdoki-launcher.png" type="image/png">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/status.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="index.html"><img src="assets/dokdoki-launcher.png" alt="" width="40" height="40">DokDoki Launcher</a>
+      <nav aria-label="Main navigation">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="downloads.html">Downloads</a></li>
+          <li><a href="requests.html">Requests</a></li>
+          <li><a href="status.html" aria-current="page">Status</a></li>
+          <li><a href="https://github.com/alfhashut/DokDoki-Launcher">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="container">
+    <div class="intro">
+      <h1>Request status</h1>
+      <p>Follow bug reports, mod requests, and removal requests here. Open and closed requests are included, with the most recently updated first.</p>
+      <p class="help">Status labels show the maintainer’s latest decision. Requests without a status label show their open or closed state.</p>
+    </div>
+    <section class="panel" aria-labelledby="lookup-heading">
+      <h2 id="lookup-heading">Find a request</h2>
+      <div class="field">
+        <label for="request-search">Request number or title</label>
+        <input id="request-search" type="search" placeholder="42, #42, or a title" maxlength="200" aria-describedby="search-help" disabled>
+        <p id="search-help" class="help">Search filters requests already loaded on this page. Load older requests below to search further back. New requests may take a moment to appear.</p>
+      </div>
+      <p id="status-message" class="muted" role="status">Loading request status…</p>
+      <p id="status-count" class="help" role="status"></p>
+      <ul id="issue-list" class="issue-list" aria-label="Requests"></ul>
+      <button id="status-load-more" class="button" type="button" hidden>Load older requests</button>
+      <button id="status-retry" class="button" type="button" hidden>Try again</button>
+      <noscript><p class="notice">Enable JavaScript to load and search public request status from GitHub.</p></noscript>
+    </section>
+  </main>
+  <footer class="site-footer">
+    <div class="container">
+      <p><small>DokDoki Launcher is an unofficial, fan-made project. It is not affiliated with, endorsed by, or associated with Team Salvato.</small></p>
+      <div class="footer-links"><a href="https://github.com/alfhashut/DokDoki-Launcher">GitHub</a><a href="https://github.com/alfhashut/DokDoki-Launcher/releases">Releases</a></div>
+    </div>
+  </footer>
+</body>
+</html>

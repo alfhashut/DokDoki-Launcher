@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Download DokDoki Launcher for Windows or Linux and choose a published version.">
+  <title>Downloads · DokDoki Launcher</title>
+  <link rel="icon" href="assets/dokdoki-launcher.png" type="image/png">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/releases.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="index.html"><img src="assets/dokdoki-launcher.png" alt="" width="40" height="40">DokDoki Launcher</a>
+      <nav aria-label="Main navigation">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="downloads.html" aria-current="page">Downloads</a></li>
+          <li><a href="requests.html">Requests</a></li>
+          <li><a href="status.html">Status</a></li>
+          <li><a href="https://github.com/alfhashut/DokDoki-Launcher">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="container">
+    <div class="intro">
+      <h1>Downloads</h1>
+      <p>Official Windows and Linux builds. The latest stable release is selected by default.</p>
+    </div>
+    <section class="panel" aria-labelledby="version-heading" data-releases="downloads">
+      <h2 id="version-heading">Choose a version</h2>
+      <p id="release-message" class="muted" role="status">Loading published releases…</p>
+      <div class="field">
+        <label for="release-select">Published release</label>
+        <select id="release-select" disabled aria-describedby="version-help"><option>Loading…</option></select>
+        <p id="version-help" class="help">Prereleases are marked and may be less stable.</p>
+      </div>
+      <div id="release-details" hidden aria-live="polite" aria-atomic="true">
+        <h3 id="release-version"></h3>
+        <p id="release-date" class="metadata"></p>
+        <p id="prerelease-notice" class="notice" hidden>This is a prerelease. It may be incomplete or less stable.</p>
+        <div id="release-assets" class="download-grid"></div>
+        <div id="release-checksums"></div>
+      </div>
+      <button id="release-retry" class="button" type="button" hidden>Try again</button>
+      <noscript><p class="notice">Enable JavaScript to load releases and their download links from GitHub.</p></noscript>
+    </section>
+    <section class="section" aria-labelledby="download-notes-heading">
+      <h2 id="download-notes-heading">Installation notes</h2>
+      <p><strong>Windows x64:</strong> Download and run the EXE. The launcher is currently unsigned, so Windows may show an “Unknown publisher” warning.</p>
+      <p><strong>Linux x86_64:</strong> Download the AppImage, make it executable in your file manager’s permissions, then run it.</p>
+      <p class="muted">Use SHA256SUMS.txt to compare the SHA-256 checksum of your downloaded file. You also need your own clean installation of the original DDLC.</p>
+    </section>
+  </main>
+  <footer class="site-footer">
+    <div class="container">
+      <p><small>DokDoki Launcher is an unofficial, fan-made project. It is not affiliated with, endorsed by, or associated with Team Salvato.</small></p>
+      <div class="footer-links"><a href="https://github.com/alfhashut/DokDoki-Launcher">GitHub</a><a href="https://github.com/alfhashut/DokDoki-Launcher/releases">Releases</a></div>
+    </div>
+  </footer>
+</body>
+</html>

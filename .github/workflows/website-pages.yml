@@ -1,0 +1,53 @@
+name: Deploy website to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - '.github/workflows/website-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+# Official Pages pattern and published action versions checked on 2026-10-22:
+# https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages
+# https://github.com/actions/checkout/releases
+# https://github.com/actions/configure-pages/releases/tag/v6.0.0
+# https://github.com/actions/upload-pages-artifact/releases/tag/v5.0.0
+# https://github.com/actions/deploy-pages/releases/tag/v5.0.1
+# Pages must already use GitHub Actions as its publishing source; this workflow
+# does not enable Pages or change repository settings.
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+      - name: Upload website only
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: website
+
+  deploy:
+    needs: upload
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

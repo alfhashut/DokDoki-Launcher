@@ -1,0 +1,5 @@
+GITHUB_TOKEN=replace-me
+TURNSTILE_SECRET_KEY=replace-me
+# Keep disabled unless deliberately running a private local integration test.
+SUBMISSIONS_ENABLED=false
+ALLOWED_ORIGINS=http://127.0.0.1:8000
