@@ -40,10 +40,11 @@ class Handler(SimpleHTTPRequestHandler):
         body = path.read_bytes()
         if root == ROOT / 'website' and path.suffix == '.html' and '_test' in query:
             body = body.replace(b'<head>', b'<head>\n  <script src="/tests/bootstrap.js"></script>', 1)
+            script_params = {'_test': query['_test'][0]}
             if '_config' in query:
-                script_query = urlencode({'_test': query['_test'][0], '_config': query['_config'][0]})
-                script_src = html.escape('js/requests.js?' + script_query, quote=True).encode()
-                body = body.replace(b'src="js/requests.js"', b'src="' + script_src + b'"')
+                script_params['_config'] = query['_config'][0]
+            script_src = html.escape('js/requests.js?' + urlencode(script_params), quote=True).encode()
+            body = body.replace(b'src="js/requests.js"', b'src="' + script_src + b'"')
         if root == ROOT / 'website' and relative == 'js/requests.js' and '_test' in query and '_config' in query:
             # Test-only source variants exercise closed/invalid configuration without
             # introducing any configuration override into the deployed application.
@@ -62,6 +63,9 @@ class Handler(SimpleHTTPRequestHandler):
             except (ValueError, TypeError):
                 self.send_error(400)
                 return
+        if root == ROOT / 'website' and relative == 'js/requests.js' and '_test' in query:
+            # Expose the real loader only in served fixtures, never in website/.
+            body = body.replace(b'  function validate(field, error) {', b'  window.DOKDOKI_TEST_LOAD_TURNSTILE = loadTurnstile;\n\n  function validate(field, error) {')
         self.send_response(200)
         self.send_header('Content-Type', self.guess_type(str(path)))
         self.send_header('Content-Length', str(len(body)))

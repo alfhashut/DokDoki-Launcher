@@ -23,6 +23,7 @@
   const configured = SUBMISSIONS_ENABLED && Boolean(apiURL && TURNSTILE_SITE_KEY);
   let turnstileReady = false;
   let scriptLoading = null;
+  let scriptFailed = false;
   const definitions = {
     "bug-form": { type: "bug", action: "report_bug", fields: { dokdokiVersion: "bug-version", operatingSystem: "bug-os", whatHappened: "bug-happened", stepsToReproduce: "bug-steps", additionalInformation: "bug-additional" } },
     "mod-form": { type: "mod-request", action: "request_mod", fields: { modName: "mod-name", sourceUrl: "mod-url", modAuthor: "mod-author", modVersion: "mod-version", additionalInformation: "mod-additional" } },
@@ -105,8 +106,14 @@
         "timeout-callback": () => {
           if (current()) resetVerification(form, "Verification expired — please try again.");
         },
-        "error-callback": () => {
-          if (current()) verificationFailed(form);
+        "error-callback": (errorCode) => {
+          if (current()) {
+            // Cloudflare client codes are six digits; reject arbitrary payloads.
+            if (typeof errorCode === "string" && errorCode.length === 6 && /^\d{6}$/.test(errorCode)) {
+              console.warn("Turnstile client error:", errorCode);
+            }
+            verificationFailed(form);
+          }
           return true;
         },
         "unsupported-callback": () => { if (current()) verificationFailed(form); }
@@ -115,42 +122,65 @@
   }
 
   function loadTurnstile() {
-    if (!configured || scriptLoading) return scriptLoading;
+    if (!configured) return null;
+    // Also recover a late API load after a timeout, without inserting a script.
+    if (window.turnstile && (!scriptLoading || scriptFailed)) {
+      turnstileReady = true;
+      scriptFailed = false;
+      scriptLoading = Promise.resolve(window.turnstile);
+    }
+    if (scriptLoading) return scriptLoading;
     scriptLoading = new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-      script.async = true;
+      const src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      const existing = Array.from(document.scripts).find((script) => script.src === src);
+      const script = existing || document.createElement("script");
+      if (!existing) {
+        script.id = "dokdoki-turnstile-api";
+        script.src = src;
+        script.async = true;
+      }
       let settled = false;
+      const cleanup = () => {
+        clearTimeout(timeout);
+        script.removeEventListener("error", fail);
+        script.removeEventListener("load", loaded);
+      };
       const fail = () => {
         if (settled) return;
         settled = true;
-        clearTimeout(timeout);
-        script.remove();
+        scriptFailed = true;
+        cleanup();
         reject(new Error("Verification unavailable"));
       };
-      const timeout = setTimeout(fail, 15000);
-      script.onerror = fail;
-      script.onload = () => {
+      const loaded = () => {
         if (settled) return;
-        try {
-          window.turnstile.ready(() => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(timeout);
-            turnstileReady = true;
-            resolve();
-          });
-        } catch { fail(); }
+        if (!window.turnstile) { fail(); return; }
+        settled = true;
+        cleanup();
+        turnstileReady = true;
+        resolve(window.turnstile);
       };
-      document.head.append(script);
-    }).then(() => {
+      const timeout = setTimeout(fail, 15000);
+      script.addEventListener("error", fail);
+      script.addEventListener("load", loaded);
+      if (!existing) document.head.append(script);
+    });
+    return scriptLoading;
+  }
+
+  function prepareVerification() {
+    const loading = loadTurnstile();
+    if (!loading) return;
+    loading.then(() => {
       const active = forms.find((form) => !form.hidden);
       if (active) renderVerification(active);
     }).catch(() => {
-      scriptLoading = null;
-      for (const form of forms) if (!completed.has(form)) verificationFailed(form);
+      for (const form of forms) {
+        if (completed.has(form)) continue;
+        verificationFailed(form);
+        verification.get(form).message.textContent = "Verification failed — please try again. Reload this page if verification cannot load.";
+      }
     });
-    return scriptLoading;
   }
 
   function validate(field, error) {
@@ -306,7 +336,7 @@
       if (!turnstileReady) {
         message.textContent = "Checking…";
         retry.hidden = true;
-        loadTurnstile();
+        prepareVerification();
       } else resetVerification(form);
     });
     wrapper.append(container, message, retry);
@@ -351,7 +381,7 @@
   selectForm();
   document.getElementById("request-picker").hidden = false;
   updateButtons();
-  if (configured) loadTurnstile();
+  if (configured) prepareVerification();
   window.addEventListener("pagehide", () => {
     for (const form of forms) removeWidget(form);
     updateButtons();

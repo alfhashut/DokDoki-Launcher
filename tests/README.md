@@ -49,8 +49,14 @@ form switching, and back/forward-cache restoration.
 
 The bootstrap intercepts the dynamically loaded official Turnstile script URL and
 supplies a minimal SDK stand-in. It does not download a live widget or call real
-Siteverify. The production source has no mock hooks or verification bypass. The
-small mock control is labelled "test fixture"; it is not a claim about Cloudflare's
+Siteverify. Fixture scripts are inert DOM elements, so singleton and existing-tag
+checks exercise the actual DOM without downloading the SDK. Only test-server
+responses expose the loader to check shared-promise identity; the production
+source has no mock hooks or verification bypass. Coverage includes concurrent
+loads, existing APIs/scripts, late loads, script failure/timeout, retries without
+reinsertion, one active widget, and safe client error codes. A failed script load
+requires a page reload unless its API becomes available late.
+The small mock control is labelled "test fixture"; it is not a claim about Cloudflare's
 actual widget appearance. Production hostname/action checks stay exact even in
 private development; see worker/README.md for the limits of real test-key replies.
 

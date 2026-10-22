@@ -11,7 +11,10 @@ test("Production: Wrangler enables the exact workers.dev deployment and preserve
   equal(config.preview_urls, false);
   equal(config.vars, { SUBMISSIONS_ENABLED: "true", ALLOWED_ORIGINS: "https://alfhashut.github.io" });
   assert(!Object.hasOwn(config, "route") && !Object.hasOwn(config, "routes"));
-  equal(config.observability.enabled, false);
+  equal(config.observability, {
+    enabled: true,
+    logs: { enabled: true, invocation_logs: true }
+  });
 });
 
 test("Production: every page retains the disclaimer and project-subpath navigation/assets", async () => {
