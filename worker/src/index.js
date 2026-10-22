@@ -97,8 +97,20 @@ function normalizeReport(input) {
 async function verifyTurnstile(token, type, secret) {
   // Token failures and configuration failures have the same public response.
   // Temporary diagnostics contain fixed categories only, never upstream values.
-  const failure = (reason) => {
-    console.log({ component: "turnstile", result: "failure", reason });
+  const failure = (reason, error) => {
+    const diagnostic = { component: "turnstile", result: "failure", reason };
+    if (reason === "siteverify_network_error") {
+      // Exception names are mutable too. Emit only known names, never arbitrary
+      // strings, exception objects, messages, stacks, or request data.
+      diagnostic.error_name = "UnknownError";
+      try {
+        const name = error?.name;
+        if (["Error", "TypeError", "AbortError", "TimeoutError", "SyntaxError", "RangeError"].includes(name)) {
+          diagnostic.error_name = name;
+        }
+      } catch { /* A custom name getter must not expose data or break rejection. */ }
+    }
+    console.log(diagnostic);
     return false;
   };
   if (typeof token !== "string" || !token.trim() || token.length > 2048 || /\s/u.test(token)) {
@@ -115,7 +127,7 @@ async function verifyTurnstile(token, type, secret) {
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       // No remoteip, CF headers, user agent, or other requester metadata.
       body: JSON.stringify({ secret, response: token }),
-      redirect: "error",
+      redirect: "manual",
       signal: controller.signal
     });
     if (!response.ok) return failure("siteverify_http_error");
@@ -123,14 +135,14 @@ async function verifyTurnstile(token, type, secret) {
     try {
       result = await response.json();
     } catch (error) {
-      return failure(error instanceof SyntaxError ? "siteverify_invalid_json" : "siteverify_network_error");
+      return failure(error instanceof SyntaxError ? "siteverify_invalid_json" : "siteverify_network_error", error);
     }
     if (result?.success !== true) return failure("siteverify_unsuccessful");
     if (result.hostname !== TURNSTILE_HOSTNAME) return failure("hostname_mismatch");
     if (result.action !== TURNSTILE_ACTIONS[type]) return failure("action_mismatch");
     return true;
-  } catch {
-    return failure("siteverify_network_error");
+  } catch (error) {
+    return failure("siteverify_network_error", error);
   } finally {
     clearTimeout(timeout);
   }
@@ -210,7 +222,7 @@ async function github(path, token, method = "GET", payload) {
         ...(payload ? { "Content-Type": "application/json" } : {})
       },
       ...(payload ? { body: JSON.stringify(payload) } : {}),
-      redirect: "error",
+      redirect: "manual",
       signal: controller.signal
     });
     // Consume the body within the timeout, but never log or return it.

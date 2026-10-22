@@ -29,22 +29,40 @@ export async function exercise(input = valid.bug, options = {}) {
   const logs = [];
   const pending = [];
   const siteverifyCalls = [];
+  const redirectedCalls = [];
+  const timeouts = [];
+  const clearedTimeouts = [];
   const queue = [...(options.responses || successful(input?.type || "bug"))];
-  const saved = { fetch: globalThis.fetch, warn: console.warn, error: console.error, setTimeout: globalThis.setTimeout };
-  console.warn = console.error = (...items) => logs.push(items);
-  if (options.fastTimeout) globalThis.setTimeout = (fn, delay) => saved.setTimeout.call(globalThis, fn, Math.min(delay, 5));
+  const saved = { fetch: globalThis.fetch, log: console.log, warn: console.warn, error: console.error, setTimeout: globalThis.setTimeout, clearTimeout: globalThis.clearTimeout };
+  console.log = console.warn = console.error = (...items) => logs.push(items);
+  if (options.fastTimeout || options.trackTimeouts) globalThis.setTimeout = (fn, delay) => {
+    const handle = saved.setTimeout.call(globalThis, fn, options.fastTimeout ? Math.min(delay, 5) : delay);
+    timeouts.push({ handle, delay });
+    return handle;
+  };
+  if (options.trackTimeouts) globalThis.clearTimeout = (handle) => {
+    clearedTimeouts.push(handle);
+    return saved.clearTimeout.call(globalThis, handle);
+  };
   globalThis.fetch = async (url, init) => {
     if (String(url) === siteverifyURL) {
-      siteverifyCalls.push({ url: String(url), ...init, payload: JSON.parse(init.body) });
+      siteverifyCalls.push({ url: String(url), ...init, payload: JSON.parse(init.body), abortedAtStart: init.signal.aborted });
       const next = options.verification || { data: { success: true, hostname: "alfhashut.github.io", action: actions[input?.type] } };
+      // Model workerd's RequestInit validation, which browser-native fetch lacks.
+      if (!["follow", "manual"].includes(init.redirect)) throw new TypeError("Invalid redirect value");
+      if (Object.hasOwn(next, "throwValue")) throw next.throwValue;
       if (next.offline) throw new Error(testSecret + testToken);
       if (next.waitForAbort) await new Promise((resolve, reject) => {
         init.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
       });
-      return new Response(next.raw ?? JSON.stringify(next.data), { status: next.status || 200 });
+      const body = [204, 205, 304].includes(next.status) ? null : next.raw ?? JSON.stringify(next.data);
+      const response = new Response(body, { status: next.status || 200, headers: next.headers });
+      if (Object.hasOwn(next, "bodyError")) response.json = async () => { throw next.bodyError; };
+      return response;
     }
     assert(String(url).startsWith(githubBase + "/"), "Unexpected upstream host/repository");
     calls.push({ url: String(url), ...init, payload: init.body ? JSON.parse(init.body) : undefined });
+    if (!["follow", "manual"].includes(init.redirect)) throw new TypeError("Invalid redirect value");
     const next = queue.shift();
     if (!next) throw new Error("Unexpected GitHub call");
     if (next.offline) throw new Error(dummySecret);
@@ -53,7 +71,15 @@ export async function exercise(input = valid.bug, options = {}) {
         init.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
       });
     }
-    return new Response(next.raw ?? JSON.stringify(next.data), { status: next.status || 200 });
+    const location = new Headers(next.headers).get("Location");
+    if (next.status >= 300 && next.status < 400 && location && init.redirect === "follow") {
+      // Model Workers forwarding headers on automatic redirects, without making
+      // any real request. Security tests must detect this credential exposure.
+      redirectedCalls.push({ url: new URL(location, url).href, headers: { ...init.headers } });
+      return new Response("{}");
+    }
+    const body = [204, 205, 304].includes(next.status) ? null : next.raw ?? JSON.stringify(next.data);
+    return new Response(body, { status: next.status || 200, headers: next.headers });
   };
   try {
     const method = options.method || "POST";
@@ -74,10 +100,12 @@ export async function exercise(input = valid.bug, options = {}) {
     } });
     await Promise.all(pending);
     const text = await response.text();
-    return { status: response.status, headers: response.headers, text, data: text ? JSON.parse(text) : null, calls, siteverifyCalls, logs };
+    return { status: response.status, headers: response.headers, text, data: text ? JSON.parse(text) : null, calls, siteverifyCalls, redirectedCalls, logs, timeouts, clearedTimeouts };
   } finally {
     globalThis.fetch = saved.fetch;
     globalThis.setTimeout = saved.setTimeout;
+    globalThis.clearTimeout = saved.clearTimeout;
+    console.log = saved.log;
     console.warn = saved.warn;
     console.error = saved.error;
   }
@@ -99,11 +127,11 @@ for (const type of Object.keys(valid)) {
     equal(result.siteverifyCalls.length, 1);
     equal(result.siteverifyCalls[0].payload, { secret: testSecret, response: testToken });
     equal(result.siteverifyCalls[0].method, "POST");
-    equal(result.siteverifyCalls[0].redirect, "error");
+    equal(result.siteverifyCalls[0].redirect, "manual");
     assert(!JSON.stringify(result.calls).includes(testToken) && !JSON.stringify(result.calls).includes(testSecret));
     equal(result.calls[3].payload, { labels: [type, "status:received"] });
     equal(result.calls[3].url, githubBase + "/issues/43/labels");
-    assert(result.calls.every((call) => call.headers.Authorization === `Bearer ${dummySecret}` && call.headers["X-GitHub-Api-Version"] === "2026-03-10" && call.headers.Accept === "application/vnd.github+json" && call.headers["User-Agent"] && call.redirect === "error"));
+    assert(result.calls.every((call) => call.headers.Authorization === `Bearer ${dummySecret}` && call.headers["X-GitHub-Api-Version"] === "2026-03-10" && call.headers.Accept === "application/vnd.github+json" && call.headers["User-Agent"] && call.redirect === "manual"));
     equal(result.headers.get("Access-Control-Allow-Origin"), origin);
     equal(result.headers.get("Cache-Control"), "no-store");
     assert(!result.text.includes(dummySecret) && !JSON.stringify(result.logs).includes(dummySecret));
@@ -111,6 +139,125 @@ for (const type of Object.keys(valid)) {
 }
 
 const verificationError = { ok: false, error: "verification_failed", message: "Verification failed. Please try again." };
+
+function assertSafeVerificationException(result, name) {
+  equal(result.status, 403);
+  equal(result.data, verificationError);
+  equal(result.calls.length, 0, "Verification exceptions must never call GitHub");
+  equal(result.logs, [[{ component: "turnstile", result: "failure", reason: "siteverify_network_error", error_name: name }]]);
+  const output = result.text + JSON.stringify(result.logs);
+  for (const value of [testSecret, testToken, dummySecret, valid.bug.whatHappened, "192.0.2.5"]) {
+    assert(!output.includes(value), "Sensitive exception data leaked (value withheld)");
+  }
+}
+
+test("Worker: Siteverify uses workerd-compatible manual redirects with its unchanged request and timeout", async () => {
+  const result = await exercise(valid.bug, { trackTimeouts: true });
+  equal(result.status, 201);
+  equal(result.data, { ok: true, requestNumber: 43, status: "received" });
+  equal(result.calls.filter((call) => call.url === githubBase + "/issues").length, 1);
+  equal(result.logs, []);
+  equal(result.siteverifyCalls.length, 1);
+  const call = result.siteverifyCalls[0];
+  equal(call.url, siteverifyURL);
+  equal(call.method, "POST");
+  equal(call.headers, { "Content-Type": "application/json", Accept: "application/json" });
+  equal(call.payload, { secret: testSecret, response: testToken });
+  equal(call.redirect, "manual");
+  equal(call.abortedAtStart, false);
+  equal(call.signal.aborted, false);
+  equal(result.timeouts[0].delay, 8000);
+  equal(result.clearedTimeouts, result.timeouts.map((timer) => timer.handle));
+});
+
+test("Worker: no error redirect mode remains in the Siteverify implementation", async () => {
+  const response = await fetch("/worker/src/index.js");
+  assert(response.ok);
+  const source = await response.text();
+  const start = source.indexOf("async function verifyTurnstile(");
+  const end = source.indexOf("async function readReport(", start);
+  assert(start >= 0 && end > start);
+  const verification = source.slice(start, end);
+  assert(/redirect:\s*"manual"/.test(verification));
+  assert(!/redirect:\s*["']error["']/.test(verification));
+});
+
+for (const status of [301, 302, 303, 304, 307, 308, 400, 403, 429, 500]) {
+  test(`Worker: non-ok Siteverify status ${status} is rejected without following redirects or calling GitHub`, async () => {
+    const result = await exercise(valid.bug, { trackTimeouts: true, verification: {
+      status,
+      headers: { Location: "https://outside.invalid/never-follow" },
+      data: { success: true, hostname: "alfhashut.github.io", action: "report_bug" },
+      bodyError: new Error(testSecret + testToken + dummySecret)
+    } });
+    equal(result.status, 403);
+    equal(result.data, verificationError);
+    equal(result.calls.length, 0);
+    equal(result.siteverifyCalls.length, 1);
+    equal(result.siteverifyCalls[0].url, siteverifyURL);
+    equal(result.siteverifyCalls[0].redirect, "manual");
+    equal(result.siteverifyCalls[0].abortedAtStart, false);
+    equal(result.logs, [[{ component: "turnstile", result: "failure", reason: "siteverify_http_error" }]]);
+    equal(result.timeouts.map((timer) => timer.delay), [8000]);
+    equal(result.clearedTimeouts, result.timeouts.map((timer) => timer.handle));
+  });
+}
+
+test("Worker diagnostics: a real abort is distinguished by AbortError and cleans up its timer", async () => {
+  const result = await exercise(valid.bug, { verification: { waitForAbort: true }, fastTimeout: true, trackTimeouts: true });
+  assertSafeVerificationException(result, "AbortError");
+  equal(result.siteverifyCalls[0].abortedAtStart, false);
+  equal(result.siteverifyCalls[0].signal.aborted, true);
+  equal(result.timeouts.map((timer) => timer.delay), [8000]);
+  equal(result.clearedTimeouts, result.timeouts.map((timer) => timer.handle));
+});
+
+const sensitiveExceptionText = [testSecret, testToken, dummySecret, valid.bug.whatHappened, "192.0.2.5"].join(" ");
+const throwingName = Object.defineProperty({}, "name", { get() { throw new Error(sensitiveExceptionText); } });
+for (const [label, value, expected] of [
+  ["error", new Error(sensitiveExceptionText), "Error"],
+  ["type error", new TypeError(sensitiveExceptionText), "TypeError"],
+  ["range error", new RangeError(sensitiveExceptionText), "RangeError"],
+  ["abort error", new DOMException(sensitiveExceptionText, "AbortError"), "AbortError"],
+  ["timeout error", new DOMException(sensitiveExceptionText, "TimeoutError"), "TimeoutError"],
+  ["custom name", Object.assign(new Error(sensitiveExceptionText), { name: sensitiveExceptionText }), "UnknownError"],
+  ["name getter", throwingName, "UnknownError"],
+  ["string", sensitiveExceptionText, "UnknownError"],
+  ["null", null, "UnknownError"]
+]) {
+  test(`Worker diagnostics: caught ${label} exposes only an allowlisted exception name`, async () => {
+    const result = await exercise(valid.bug, { verification: { throwValue: value } });
+    assertSafeVerificationException(result, expected);
+    equal(result.siteverifyCalls[0].abortedAtStart, false);
+  });
+}
+
+test("Worker diagnostics: response body transport failures retain the generic client response", async () => {
+  const result = await exercise(valid.bug, { verification: { bodyError: new TypeError(sensitiveExceptionText) } });
+  assertSafeVerificationException(result, "TypeError");
+});
+
+test("Worker diagnostics: invalid JSON is not misclassified as a fetch exception", async () => {
+  const result = await exercise(valid.bug, { verification: { raw: sensitiveExceptionText } });
+  equal(result.status, 403);
+  equal(result.data, verificationError);
+  equal(result.calls.length, 0);
+  equal(result.logs, [[{ component: "turnstile", result: "failure", reason: "siteverify_invalid_json" }]]);
+});
+
+test("Worker diagnostics: each Siteverify call receives a fresh, non-aborted signal", async () => {
+  const first = await exercise(valid.bug);
+  const second = await exercise(valid.bug);
+  equal(first.status, 201);
+  equal(second.status, 201);
+  const a = first.siteverifyCalls[0], b = second.siteverifyCalls[0];
+  assert(a.signal !== b.signal);
+  equal(a.abortedAtStart, false);
+  equal(b.abortedAtStart, false);
+  equal(a.signal.aborted, false);
+  equal(b.signal.aborted, false);
+});
+
 for (const turnstileToken of ["", " ", null, 123, "x".repeat(2049), "invalid token"]) {
   test(`Worker: unusable Turnstile token is rejected (${typeof turnstileToken}, length ${String(turnstileToken).length})`, async () => {
     const result = await exercise({ ...valid.bug, turnstileToken });
@@ -287,6 +434,73 @@ for (const failure of [{ status: 401, data: { message: dummySecret } }, { status
     equal(result.data, { ok: false, error: "submission_failed", message: "The request could not be submitted right now." });
     equal(result.calls.length, 1);
     assert(!result.text.includes(dummySecret) && !JSON.stringify(result.logs).includes(dummySecret));
+  });
+}
+
+test("Worker: all runtime outbound fetches explicitly use manual redirect rejection", async () => {
+  const response = await fetch("/worker/src/index.js");
+  assert(response.ok);
+  const source = await response.text();
+  equal([...source.matchAll(/\bredirect:\s*["']([^"']+)["']/g)].map((match) => match[1]), ["manual", "manual"]);
+  assert(!/\bredirect:\s*["'](?:error|follow)["']/.test(source));
+});
+
+function assertNoGitHubRedirectFollow(result) {
+  equal(result.redirectedCalls, [], "Authorization must never reach a redirect destination");
+  for (const call of result.calls) {
+    assert(call.url.startsWith(githubBase + "/"));
+    equal(call.redirect, "manual");
+    equal(call.headers.Authorization, `Bearer ${dummySecret}`);
+  }
+  equal(result.siteverifyCalls.length, 1);
+  equal(result.siteverifyCalls[0].redirect, "manual");
+  assert(!result.text.includes(dummySecret) && !JSON.stringify(result.logs).includes(dummySecret));
+  equal(result.timeouts[0].delay, 8000);
+  assert(result.timeouts.slice(1).every((timer) => timer.delay === 10000));
+  equal(result.clearedTimeouts, result.timeouts.map((timer) => timer.handle));
+}
+
+for (const status of [301, 302, 303, 304, 307, 308]) {
+  const headers = { Location: "https://redirect-target.invalid/credential-trap" };
+  test(`Worker: GitHub issue redirect ${status} fails safely without forwarding Authorization`, async () => {
+    const result = await exercise(valid.bug, { trackTimeouts: true, responses: [
+      { status, headers, data: { number: 43, message: dummySecret } }
+    ] });
+    equal(result.status, 502);
+    equal(result.data, { ok: false, error: "submission_failed", message: "The request could not be submitted right now." });
+    equal(result.calls.length, 1, "A redirect must not retry creation or start label requests");
+    equal(result.calls[0].url, githubBase + "/issues");
+    equal(result.calls[0].method, "POST");
+    equal(result.logs, [["report_creation_failed"]]);
+    assertNoGitHubRedirectFollow(result);
+  });
+
+  test(`Worker: GitHub label lookup redirect ${status} is rejected without losing the issue`, async () => {
+    const responses = successful("bug");
+    responses[1] = { status, headers, data: { name: "bug", message: dummySecret } };
+    const result = await exercise(valid.bug, { responses, trackTimeouts: true });
+    equal(result.status, 201);
+    equal(result.data, { ok: true, requestNumber: 43, status: "received" });
+    equal(result.calls.filter((call) => call.url === githubBase + "/issues").length, 1);
+    equal(result.calls[1].url, githubBase + "/labels/bug");
+    equal(result.calls[1].method, "GET");
+    equal(result.calls.at(-1).payload, { labels: ["status:received"] });
+    equal(result.logs, [["report_label_unavailable"]]);
+    assertNoGitHubRedirectFollow(result);
+  });
+
+  test(`Worker: GitHub label application redirect ${status} is rejected without losing the issue`, async () => {
+    const responses = successful("bug");
+    responses[3] = { status, headers, data: [{ name: "bug" }, { name: "status:received" }] };
+    const result = await exercise(valid.bug, { responses, trackTimeouts: true });
+    equal(result.status, 201);
+    equal(result.data, { ok: true, requestNumber: 43, status: "received" });
+    equal(result.calls.length, 4);
+    equal(result.calls.filter((call) => call.url === githubBase + "/issues").length, 1);
+    equal(result.calls[3].url, githubBase + "/issues/43/labels");
+    equal(result.calls[3].method, "POST");
+    equal(result.logs, [["report_labels_incomplete"]]);
+    assertNoGitHubRedirectFollow(result);
   });
 }
 
