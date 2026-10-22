@@ -96,9 +96,17 @@ function normalizeReport(input) {
 
 async function verifyTurnstile(token, type, secret) {
   // Token failures and configuration failures have the same public response.
-  // Neither these values nor the raw Siteverify response enter logs or Issues.
-  if (typeof token !== "string" || !token.trim() || token.length > 2048 || /\s/u.test(token) ||
-      typeof secret !== "string" || !secret.trim() || secret === "replace-me") return false;
+  // Temporary diagnostics contain fixed categories only, never upstream values.
+  const failure = (reason) => {
+    console.log({ component: "turnstile", result: "failure", reason });
+    return false;
+  };
+  if (typeof token !== "string" || !token.trim() || token.length > 2048 || /\s/u.test(token)) {
+    return failure("missing_token");
+  }
+  if (typeof secret !== "string" || !secret.trim() || secret === "replace-me") {
+    return failure("missing_secret");
+  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
@@ -110,11 +118,19 @@ async function verifyTurnstile(token, type, secret) {
       redirect: "error",
       signal: controller.signal
     });
-    if (!response.ok) return false;
-    const result = await response.json();
-    return result?.success === true && result.hostname === TURNSTILE_HOSTNAME && result.action === TURNSTILE_ACTIONS[type];
+    if (!response.ok) return failure("siteverify_http_error");
+    let result;
+    try {
+      result = await response.json();
+    } catch (error) {
+      return failure(error instanceof SyntaxError ? "siteverify_invalid_json" : "siteverify_network_error");
+    }
+    if (result?.success !== true) return failure("siteverify_unsuccessful");
+    if (result.hostname !== TURNSTILE_HOSTNAME) return failure("hostname_mismatch");
+    if (result.action !== TURNSTILE_ACTIONS[type]) return failure("action_mismatch");
+    return true;
   } catch {
-    return false;
+    return failure("siteverify_network_error");
   } finally {
     clearTimeout(timeout);
   }
@@ -254,7 +270,6 @@ export default {
       // Discard the transient token before creating any GitHub request.
       delete input.turnstileToken;
       if (!verified) {
-        console.warn("report_verification_failed");
         return json({ ok: false, error: "verification_failed", message: "Verification failed. Please try again." }, 403, origin);
       }
       if (typeof env.GITHUB_TOKEN !== "string" || !env.GITHUB_TOKEN.trim() || env.GITHUB_TOKEN === "replace-me") {
