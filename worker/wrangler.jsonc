@@ -12,6 +12,13 @@
     "ALLOWED_ORIGINS": "https://alfhashut.github.io"
   },
 
+  "secrets": {
+    "required": [
+      "GITHUB_TOKEN",
+      "TURNSTILE_SECRET_KEY"
+    ]
+  },
+
   "observability": {
     "enabled": true,
     "logs": {

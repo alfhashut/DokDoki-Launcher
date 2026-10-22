@@ -9,12 +9,53 @@ test("Production: Wrangler enables the exact workers.dev deployment and preserve
   equal(config.compatibility_date, "2026-10-21");
   equal(config.workers_dev, true);
   equal(config.preview_urls, false);
+  equal(config.keep_vars, true);
   equal(config.vars, { SUBMISSIONS_ENABLED: "true", ALLOWED_ORIGINS: "https://alfhashut.github.io" });
+  equal(config.secrets, { required: ["GITHUB_TOKEN", "TURNSTILE_SECRET_KEY"] });
   assert(!Object.hasOwn(config, "route") && !Object.hasOwn(config, "routes"));
   equal(config.observability, {
     enabled: true,
     logs: { enabled: true, invocation_logs: true }
   });
+});
+
+test("Production: required secret names match the Worker's exact env bindings", async () => {
+  const [configResponse, sourceResponse] = await Promise.all([
+    fetch("/worker/wrangler.jsonc"), fetch("/worker/src/index.js")
+  ]);
+  assert(configResponse.ok && sourceResponse.ok);
+  const config = JSON.parse(await configResponse.text());
+  const source = await sourceResponse.text();
+  const accessed = new Set();
+  for (const match of source.matchAll(/\b(?:GITHUB_TOKEN|TURNSTILE_SECRET_KEY)\b/g)) {
+    equal(source.slice(match.index - 4, match.index), "env.", "Secrets must come only from Worker env bindings");
+    accessed.add(match[0]);
+  }
+  equal([...accessed].sort(), [...config.secrets.required].sort());
+  assert(source.includes("verifyTurnstile(input.turnstileToken, input.type, env.TURNSTILE_SECRET_KEY)"));
+  assert(source.includes('github("/issues", env.GITHUB_TOKEN, "POST",'));
+  assert(source.includes("applyLabels(number, report.labels, env.GITHUB_TOKEN)"));
+});
+
+test("Production: Worker source and configuration contain no embedded credential values", async () => {
+  const [configResponse, sourceResponse] = await Promise.all([
+    fetch("/worker/wrangler.jsonc"), fetch("/worker/src/index.js")
+  ]);
+  assert(configResponse.ok && sourceResponse.ok);
+  const config = JSON.parse(await configResponse.text());
+  const source = await sourceResponse.text();
+  equal(config.secrets, { required: ["GITHUB_TOKEN", "TURNSTILE_SECRET_KEY"] });
+  for (const name of config.secrets.required) assert(!Object.hasOwn(config.vars, name), "Secret values must not be Wrangler vars");
+  const combined = source + JSON.stringify(config);
+  const credentialPatterns = [
+    /\bgh[pousr]_[A-Za-z0-9]{20,255}\b/,
+    /\bgithub_pat_[A-Za-z0-9_]{30,255}\b/,
+    /\b0x[A-Za-z0-9_-]{20,}\b/,
+    /["'`]Bearer\s+[A-Za-z0-9._~+/=-]{16,}/,
+    /\b(?:GITHUB_TOKEN|TURNSTILE_SECRET_KEY)\b["']?\s*[:=]\s*["'`][^"'`\r\n]+["'`]/,
+    /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/
+  ];
+  assert(credentialPatterns.every((pattern) => !pattern.test(combined)), "Embedded credential pattern found (value withheld)");
 });
 
 test("Production: every page retains the disclaimer and project-subpath navigation/assets", async () => {
