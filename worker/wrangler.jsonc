@@ -5,11 +5,18 @@
   "compatibility_date": "2026-10-21",
   "workers_dev": true,
   "preview_urls": false,
+
   "vars": {
     "SUBMISSIONS_ENABLED": "true",
     "ALLOWED_ORIGINS": "https://alfhashut.github.io"
   },
+
   "observability": {
-    "enabled": false
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true
+    }
   }
 }
+ 
